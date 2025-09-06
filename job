@@ -1,0 +1,293 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+
+// Dados de receitas de exemplo para iniciar
+const initialRecipes = [
+  {
+    id: '1',
+    name: 'Bolo de Chocolate',
+    ingredients: [
+      '2 xícaras de farinha de trigo',
+      '1 xícara de açúcar',
+      '1/2 xícara de cacau em pó',
+      '1 xícara de leite',
+      '2 ovos',
+      '1 colher de sopa de fermento em pó',
+    ],
+    preparation: 'Misture todos os ingredientes secos. Adicione os líquidos e misture bem. Coloque em uma forma untada e asse por 40 minutos em forno pré-aquecido.',
+  },
+  {
+    id: '2',
+    name: 'Salada Colorida',
+    ingredients: [
+      'Alface americana',
+      'Tomate cereja',
+      'Pepino',
+      'Cenoura ralada',
+      'Azeite e sal a gosto',
+    ],
+    preparation: 'Lave e pique todos os vegetais. Misture-os em uma tigela grande. Tempere com azeite e sal na hora de servir.',
+  },
+];
+
+export default function App() {
+  const [recipes, setRecipes] = useState(initialRecipes);
+  const [currentScreen, setCurrentScreen] = useState('list'); // 'list', 'details', 'add'
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [newRecipe, setNewRecipe] = useState({ id: '', name: '', ingredients: '', preparation: '' });
+
+  // Navegação entre telas
+  const navigateTo = (screen, recipe = null) => {
+    setCurrentScreen(screen);
+    if (screen === 'details') {
+      setSelectedRecipe(recipe);
+    } else if (screen === 'add') {
+      setNewRecipe(recipe ? { ...recipe, ingredients: recipe.ingredients.join('\n') } : { id: '', name: '', ingredients: '', preparation: '' });
+    }
+  };
+
+  // Funções CRUD
+  const addOrUpdateRecipe = () => {
+    if (!newRecipe.name || !newRecipe.ingredients || !newRecipe.preparation) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos.');
+      return;
+    }
+
+    const ingredientsArray = newRecipe.ingredients.split('\n').map(item => item.trim()).filter(item => item);
+    const recipeWithArray = { ...newRecipe, ingredients: ingredientsArray };
+
+    if (recipeWithArray.id) {
+      // Atualizar receita existente
+      setRecipes(recipes.map(r => r.id === recipeWithArray.id ? recipeWithArray : r));
+    } else {
+      // Adicionar nova receita
+      const newId = (recipes.length + 1).toString();
+      setRecipes([...recipes, { ...recipeWithArray, id: newId }]);
+    }
+    navigateTo('list');
+  };
+
+  const deleteRecipe = (recipeId) => {
+    Alert.alert(
+      'Confirmar exclusão',
+      'Tem certeza de que deseja excluir esta receita?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Excluir',
+          onPress: () => {
+            setRecipes(recipes.filter(r => r.id !== recipeId));
+            navigateTo('list');
+          },
+        },
+      ],
+      { cancelable: false }
+    );
+  };
+
+  // Componente de lista de receitas
+  const RecipeListScreen = () => (
+    <View style={styles.container}>
+      <Text style={styles.title}>Minhas Receitas</Text>
+      <FlatList
+        data={recipes}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => navigateTo('details', item)} style={styles.listItem}>
+            <Text style={styles.listItemText}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+      />
+      <TouchableOpacity style={styles.addButton} onPress={() => navigateTo('add')}>
+        <Text style={styles.buttonText}>Adicionar Nova Receita</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Componente de detalhes da receita
+  const RecipeDetailsScreen = () => (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>{selectedRecipe.name}</Text>
+      <Text style={styles.subtitle}>Ingredientes:</Text>
+      {selectedRecipe.ingredients.map((ing, index) => (
+        <Text key={index} style={styles.detailText}>• {ing}</Text>
+      ))}
+      <Text style={styles.subtitle}>Modo de Preparo:</Text>
+      <Text style={styles.detailText}>{selectedRecipe.preparation}</Text>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={[styles.button, styles.editButton]} onPress={() => navigateTo('add', selectedRecipe)}>
+          <Text style={styles.buttonText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={() => deleteRecipe(selectedRecipe.id)}>
+          <Text style={styles.buttonText}>Excluir</Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigateTo('list')}>
+        <Text style={styles.buttonText}>Voltar</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  // Componente de adicionar/editar receita
+  const AddRecipeScreen = () => (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>{newRecipe.id ? 'Editar Receita' : 'Adicionar Receita'}</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Nome da Receita"
+        value={newRecipe.name}
+        onChangeText={(text) => setNewRecipe({ ...newRecipe, name: text })}
+      />
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        placeholder="Ingredientes (um por linha)"
+        multiline
+        value={newRecipe.ingredients}
+        onChangeText={(text) => setNewRecipe({ ...newRecipe, ingredients: text })}
+      />
+      <TextInput
+        style={[styles.input, styles.textArea]}
+        placeholder="Modo de Preparo"
+        multiline
+        value={newRecipe.preparation}
+        onChangeText={(text) => setNewRecipe({ ...newRecipe, preparation: text })}
+      />
+      <TouchableOpacity style={styles.addButton} onPress={addOrUpdateRecipe}>
+        <Text style={styles.buttonText}>{newRecipe.id ? 'Salvar Alterações' : 'Adicionar Receita'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigateTo('list')}>
+        <Text style={styles.buttonText}>Voltar</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  // Renderização condicional da tela atual
+  let screenComponent;
+  switch (currentScreen) {
+    case 'details':
+      screenComponent = <RecipeDetailsScreen />;
+      break;
+    case 'add':
+      screenComponent = <AddRecipeScreen />;
+      break;
+    case 'list':
+    default:
+      screenComponent = <RecipeListScreen />;
+  }
+
+  return screenComponent;
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f8f8f8',
+    marginTop: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 15,
+    marginBottom: 5,
+    color: '#555',
+  },
+  listItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  listItemText: {
+    fontSize: 18,
+    color: '#333',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  addButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  backButton: {
+    backgroundColor: '#9575CD',
+    padding: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  editButton: {
+    backgroundColor: '#FFC107',
+  },
+  deleteButton: {
+    backgroundColor: '#F44336',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  detailText: {
+    fontSize: 16,
+    marginBottom: 8,
+    color: '#666',
+    lineHeight: 24,
+  },
+  input: {
+    height: 50,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 15,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 15,
+  },
+});
